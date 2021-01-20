@@ -18,12 +18,12 @@ RUN cargo install --path .
 # Song-Recognition
 WORKDIR /usr/src/app
 COPY src/deps.ts .
-RUN deno cache deps.ts
+RUN deno cache deps.ts --unstable
 ADD src/ .
-RUN deno cache main.ts
+RUN deno cache main.ts --unstable
 
 # Expose port
 EXPOSE 3000
 
 # Run application
-CMD ["run", "--allow-net", "main.ts"]
+CMD ["run", "--allow-net", "--allow-env", "--allow-read", "--unstable", "main.ts"]

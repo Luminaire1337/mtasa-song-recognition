@@ -13,5 +13,4 @@ const server = new Drash.Http.Server({
 });
 
 await server.run({ hostname: '0.0.0.0', port: 3000 });
-
 console.log('Server running on port 3000.');
