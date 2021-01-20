@@ -23,7 +23,7 @@ ADD src/ .
 RUN deno cache main.ts
 
 # Expose port
-EXPOSE 55001
+EXPOSE 3000
 
 # Run application
-CMD ["run", "main.ts"]
+CMD ["run", "--allow-net", "main.ts"]
