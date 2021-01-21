@@ -1,18 +1,37 @@
-import { Drash, fs } from '../deps.ts';
+import { Drash, fs, path } from '../deps.ts';
 
 import BaseResource from '../BaseResource.ts';
 
+import SongService, { IRecognizedData } from '../services/SongService.ts';
+
+const RESOURCES_DIRECTORY = '/mta_resources/';
+
 export default class RecognizeResource extends BaseResource {
-  static paths = ['/v1/recognize/:mtaresource'];
+  static paths = ['/v1/recognize'];
 
   public async PUT(): Promise<Drash.Http.Response> {
-    // TODO: Do we need extra security here so the user can't escape the resource folder?
-    // (shouldn't really matter tho, since it's running in a container and requests come from the gameserver only...)
-    if (!(await fs.exists(`/mta_resources/${this.request.getPathParam('mtaresource')}`)))
-      return this.errorResponse(404, 'MTA resource was not found.');
+    const relativeSongPath = this.request.getUrlQueryParam('relativeSongPath');
 
-    return this.successResponse(200, {
-      ping: 'pong',
-    });
+    if (!relativeSongPath) return this.errorResponse(400, 'relativeSongPath query parameter is missing.');
+
+    const fullPath = path.join(RESOURCES_DIRECTORY, relativeSongPath);
+
+    if (!fullPath.startsWith(RESOURCES_DIRECTORY) || fullPath === RESOURCES_DIRECTORY)
+      return this.errorResponse(400, 'Invalid path.');
+    if (!(await fs.exists(fullPath))) return this.errorResponse(404, 'MTA resource was not found.');
+
+    const song = new SongService(fullPath);
+    let recognizedData: IRecognizedData;
+
+    try {
+      await song.preprocess();
+      recognizedData = await song.recognize();
+      await song.writeMetadata();
+      await song.cleanup();
+    } catch (err) {
+      return this.errorResponse(500, err.message);
+    }
+
+    return this.successResponse(200, recognizedData);
   }
 }
