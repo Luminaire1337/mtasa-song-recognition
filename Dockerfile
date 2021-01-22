@@ -26,4 +26,4 @@ RUN deno cache main.ts --unstable
 EXPOSE 3000
 
 # Run application
-CMD ["run", "--allow-net", "--allow-run", "--allow-read", "--allow-write", "--unstable", "main.ts"]
+CMD ["run", "--allow-net", "--allow-run", "--allow-read", "--allow-write", "--allow-env", "--unstable", "main.ts"]

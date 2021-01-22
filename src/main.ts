@@ -4,6 +4,8 @@ import AuthMiddleware from './middlewares/AuthMiddleware.ts';
 
 import RecognizeResource from './resources/RecognizeResource.ts';
 
+if (!Deno.env.get('API_KEY')) throw new ReferenceError('API_KEY environment variable is not set.');
+
 const server = new Drash.Http.Server({
   middleware: {
     before_request: [AuthMiddleware],
