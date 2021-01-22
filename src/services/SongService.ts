@@ -1,8 +1,10 @@
 import { exec, fs, OutputMode, path, v4 } from '../deps.ts';
 
 const TEMP_PATH = `/tmp_songs/`;
-const TRIM_OFFSET = 60; // seconds
-const TRIM_LENGTH = 10; // seconds
+const TRIM_AUDIO = false; // Trimming the audio reduces processing time
+const TRIM_OFFSET = 55; // seconds
+const TRIM_LENGTH = 45; // seconds
+const SUPPORTED_FORMATS = ['.mp3', '.ogg'];
 
 export interface IRecognizedData {
   artist: string;
@@ -17,6 +19,10 @@ export default class SongService {
 
   public async preprocess(): Promise<void> {
     const extname = path.extname(this.path);
+
+    if (!SUPPORTED_FORMATS.includes(extname)) throw new Error('Unsupported audio format.');
+    if (!TRIM_AUDIO) return;
+
     this.tmpFilePath = path.join(TEMP_PATH, `${v4.generate()}${extname}`);
 
     try {
@@ -38,10 +44,10 @@ export default class SongService {
   }
 
   public async recognize(): Promise<IRecognizedData> {
-    if (!this.tmpFilePath) throw new Error('No path was loaded into the SongService.');
+    if (TRIM_AUDIO && !this.tmpFilePath) throw new Error('No path was loaded into the SongService.');
 
     try {
-      const execResponse = await exec(`songrec audio-file-to-recognized-song ${this.tmpFilePath}`, {
+      const execResponse = await exec(`songrec audio-file-to-recognized-song ${this.tmpFilePath || this.path}`, {
         output: OutputMode.Capture,
       });
       const response = JSON.parse(execResponse.output);
@@ -58,7 +64,6 @@ export default class SongService {
   }
 
   public async writeMetadata(): Promise<void> {
-    if (!this.tmpFilePath) throw new Error('No path was loaded into the SongService.');
     if (!this.recognizedData) throw new Error('No metadata was found to write.');
 
     try {
@@ -74,7 +79,7 @@ export default class SongService {
   }
 
   public async cleanup(): Promise<void> {
-    if (!this.tmpFilePath || !(await fs.exists(this.tmpFilePath))) return;
+    if (!TRIM_AUDIO || !this.tmpFilePath || !(await fs.exists(this.tmpFilePath))) return;
 
     await Deno.remove(this.tmpFilePath);
     this.tmpFilePath = undefined;
