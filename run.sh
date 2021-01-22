@@ -1,0 +1,1 @@
+docker build -t song-recognition:latest . && docker rmi $(docker images -f "dangling=true" -q) -f && clear && docker run -it --init -p 3000:3000 -v "$PWD"/dev_resources:/mta_resources -v "$PWD"/dev_songs:/tmp_songs -e API_KEY=test song-recognition
