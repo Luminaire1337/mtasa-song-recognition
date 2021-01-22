@@ -4,7 +4,7 @@ FROM hayd/deno:debian-1.6.2
 RUN apt update
 
 # Install required libs
-RUN apt install -y curl git build-essential libasound2-dev libgtk-3-dev libssl-dev ffmpeg
+RUN apt install -y curl git build-essential libasound2-dev libgtk-3-dev libssl-dev ffmpeg kid3-cli
 
 # Install rust & cargo
 RUN curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
