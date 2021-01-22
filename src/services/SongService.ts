@@ -21,6 +21,7 @@ export default class SongService {
     this.tmpFilePath = path.join(TEMP_PATH, `${v4.generate()}${extname}`);
 
     try {
+      // TODO: Escape cmd args
       await exec(`ffmpeg -ss ${TRIM_OFFSET} -i ${this.path} -t ${TRIM_LENGTH} -c copy ${this.tmpFilePath}`);
       if (!(await fs.exists(this.tmpFilePath))) throw new Error('Could not trim song. (1)');
 
@@ -59,7 +60,17 @@ export default class SongService {
   }
 
   public async writeMetadata(): Promise<void> {
-    
+    if (!this.tmpFilePath) throw new Error('No path was loaded into the SongService.');
+    if (!this.recognizedData) throw new Error('No metadata was found to write.');
+
+    try {
+      const response = await exec(
+        `kid3-cli -c "set artist '${this.recognizedData.artist}'" -c "set title '${this.recognizedData.title}'" -c "save" ${this.path}`
+      );
+    } catch (err) {
+      console.log(err);
+      throw new Error('Could not tag the songfile.');
+    }
   }
 
   public async cleanup(): Promise<void> {
