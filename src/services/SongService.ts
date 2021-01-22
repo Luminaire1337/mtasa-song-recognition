@@ -1,5 +1,4 @@
-import { OutputMode } from 'https://deno.land/x/exec@0.0.5/mod.ts';
-import { exec, fs, path, v4 } from '../deps.ts';
+import { exec, fs, OutputMode, path, v4 } from '../deps.ts';
 
 const TEMP_PATH = `/tmp_songs/`;
 const TRIM_OFFSET = 60; // seconds
@@ -21,7 +20,6 @@ export default class SongService {
     this.tmpFilePath = path.join(TEMP_PATH, `${v4.generate()}${extname}`);
 
     try {
-      // TODO: Escape cmd args
       await exec(`ffmpeg -ss ${TRIM_OFFSET} -i ${this.path} -t ${TRIM_LENGTH} -c copy ${this.tmpFilePath}`);
       if (!(await fs.exists(this.tmpFilePath))) throw new Error('Could not trim song. (1)');
 
@@ -65,7 +63,9 @@ export default class SongService {
 
     try {
       const response = await exec(
-        `kid3-cli -c "set artist '${this.recognizedData.artist}'" -c "set title '${this.recognizedData.title}'" -c "save" ${this.path}`
+        `kid3-cli -c "set artist '${SongService.sanitize(this.recognizedData.artist)}'" -c "set title '${SongService.sanitize(
+          this.recognizedData.title
+        )}'" -c "save" ${this.path}`
       );
     } catch (err) {
       console.log(err);
@@ -74,9 +74,13 @@ export default class SongService {
   }
 
   public async cleanup(): Promise<void> {
-    if (!this.tmpFilePath) return;
+    if (!this.tmpFilePath || !(await fs.exists(this.tmpFilePath))) return;
 
     await Deno.remove(this.tmpFilePath);
     this.tmpFilePath = undefined;
+  }
+
+  private static sanitize(arg: string): string {
+    return arg.replaceAll("'", "\\'");
   }
 }

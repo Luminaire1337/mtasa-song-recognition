@@ -27,9 +27,10 @@ export default class RecognizeResource extends BaseResource {
       await song.preprocess();
       recognizedData = await song.recognize();
       await song.writeMetadata();
-      await song.cleanup();
     } catch (err) {
       return this.errorResponse(500, err.message);
+    } finally {
+      await song.cleanup();
     }
 
     return this.successResponse(200, recognizedData);
