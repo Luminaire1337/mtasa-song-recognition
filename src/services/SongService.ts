@@ -27,7 +27,7 @@ export default class SongService {
 
     try {
       await exec(`ffmpeg -ss ${TRIM_OFFSET} -i ${this.path} -t ${TRIM_LENGTH} -c copy ${this.tmpFilePath}`);
-      if (!(await fs.exists(this.tmpFilePath))) throw new Error('Could not trim song. (1)');
+      if (!(await fs.exists(this.tmpFilePath))) throw new Error('Could not trim song.');
 
       // https://github.com/gpasq/deno-exec#does-piping-work
       const duration = await exec(`bash -c "ffprobe -i ${this.tmpFilePath} -show_format -v quiet | sed -n 's/duration=//p'"`, {
@@ -36,10 +36,10 @@ export default class SongService {
 
       const ceiledValue = Math.ceil(parseFloat(duration.output));
       if (!ceiledValue || ceiledValue < TRIM_LENGTH)
-        throw new RangeError('Could not trim song or trimmed song part is too short. (2)');
+        throw new RangeError('Could not trim song or trimmed song part is too short.');
     } catch (err) {
       console.error(err);
-      throw new Error('Internal Server Error (1)');
+      throw new Error('Internal Server Error.');
     }
   }
 
@@ -49,7 +49,6 @@ export default class SongService {
     try {
       const execResponse = await exec(`songrec audio-file-to-recognized-song ${this.tmpFilePath || this.path}`, {
         output: OutputMode.Capture,
-        verbose: true,
       });
       const response = JSON.parse(execResponse.output);
 
