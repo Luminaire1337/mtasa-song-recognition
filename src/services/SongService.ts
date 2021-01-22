@@ -1,9 +1,9 @@
 import { exec, fs, OutputMode, path, v4 } from '../deps.ts';
 
-const TEMP_PATH = `/tmp_songs/`;
-const TRIM_AUDIO = false; // Trimming the audio reduces processing time
-const TRIM_OFFSET = 55; // seconds
-const TRIM_LENGTH = 45; // seconds
+const TEMP_PATH = Deno.env.get('TEMP_PATH') || `/tmp_songs/`;
+const TRIM_AUDIO = Deno.env.get('TRIM_AUDIO') === 'true'; // Trimming the audio reduces processing time
+const TRIM_OFFSET = parseInt(Deno.env.get('TRIM_OFFSET') || '55', 10); // seconds
+const TRIM_LENGTH = parseInt(Deno.env.get('TRIM_LENGTH') || '45', 10); // seconds
 const SUPPORTED_FORMATS = ['.mp3', '.ogg'];
 
 export interface IRecognizedData {
@@ -49,6 +49,7 @@ export default class SongService {
     try {
       const execResponse = await exec(`songrec audio-file-to-recognized-song ${this.tmpFilePath || this.path}`, {
         output: OutputMode.Capture,
+        verbose: true,
       });
       const response = JSON.parse(execResponse.output);
 

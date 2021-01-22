@@ -4,7 +4,7 @@ import BaseResource from '../BaseResource.ts';
 
 import SongService, { IRecognizedData } from '../services/SongService.ts';
 
-const RESOURCES_DIRECTORY = '/mta_resources/';
+const RESOURCES_DIRECTORY = Deno.env.get('RESOURCES_DIRECTORY') || '/mta_resources/';
 
 export default class RecognizeResource extends BaseResource {
   static paths = ['/v1/recognize'];
