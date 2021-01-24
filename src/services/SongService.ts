@@ -38,7 +38,7 @@ export default class SongService {
       if (!ceiledValue || ceiledValue < TRIM_LENGTH)
         throw new RangeError('Could not trim song or trimmed song part is too short.');
     } catch (err) {
-      console.error(err);
+      console.error(`Preprocessing for ${this.path} failed: ${err}`);
       throw new Error('Internal Server Error.');
     }
   }
@@ -56,7 +56,7 @@ export default class SongService {
 
       this.recognizedData = { artist: response.track.subtitle, title: response.track.title };
     } catch (err) {
-      console.error(err);
+      console.error(`Could not recognize song ${this.path}: ${err}`);
       throw new Error('Could not recognize song.');
     }
 
@@ -73,7 +73,7 @@ export default class SongService {
         )}'" -c "save" ${this.path}`
       );
     } catch (err) {
-      console.log(err);
+      console.error(`Could not tag songfile ${this.path}: ${err}`);
       throw new Error('Could not tag the songfile.');
     }
   }
