@@ -47,10 +47,12 @@ export default class SongService {
     if (TRIM_AUDIO && !this.tmpFilePath) throw new Error('No path was loaded into the SongService.');
 
     try {
-      const execResponse = await exec(`songrec audio-file-to-recognized-song ${this.tmpFilePath || this.path}`, {
+      const execResponse = await exec(`bash -c "songrec audio-file-to-recognized-song ${this.tmpFilePath || this.path} | base64"`, {
         output: OutputMode.Capture,
-      });
-      const response = JSON.parse(execResponse.output);
+      }); // exec has no utf8 support on OutputMode.Capture
+      
+      const utf8Output = decodeURIComponent(escape(atob(execResponse.output)));
+      const response = JSON.parse(utf8Output);
 
       if (!response.track) throw new Error('Could not recognize song.');
 
