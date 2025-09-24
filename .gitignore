@@ -2,3 +2,9 @@ dev_resources/
 dev_songs/
 
 .DS_Store
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+!.dockerignore

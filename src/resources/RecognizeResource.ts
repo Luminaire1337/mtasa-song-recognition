@@ -1,10 +1,12 @@
-import { Drash, fs, path } from '../deps.ts';
+import { Drash } from 'drash';
+import * as path from 'jsr:@std/path';
+import FileOps from '../FileOps.ts';
 
 import BaseResource from '../BaseResource.ts';
 
 import SongService, { IRecognizedData } from '../services/SongService.ts';
 
-const RESOURCES_DIRECTORY = Deno.env.get('RESOURCES_DIRECTORY') || '/mta_resources/';
+const RESOURCES_DIRECTORY = Deno.env.get('RESOURCES_DIRECTORY') || '/usr/src/resources/';
 
 export default class RecognizeResource extends BaseResource {
   static paths = ['/v1/recognize'];
@@ -14,11 +16,11 @@ export default class RecognizeResource extends BaseResource {
 
     if (!relativeSongPath) return this.errorResponse(400, 'relativeSongPath query parameter is missing.');
 
-    const fullPath = path.join(RESOURCES_DIRECTORY, relativeSongPath);
+    const fullPath = path.join(RESOURCES_DIRECTORY, decodeURIComponent(relativeSongPath));
 
     if (!fullPath.startsWith(RESOURCES_DIRECTORY) || fullPath === RESOURCES_DIRECTORY)
       return this.errorResponse(400, 'Invalid path.');
-    if (!(await fs.exists(fullPath))) return this.errorResponse(404, 'MTA resource was not found.');
+    if (!(await FileOps.fileExists(fullPath))) return this.errorResponse(404, 'MTA resource was not found.');
 
     const song = new SongService(fullPath);
     let recognizedData: IRecognizedData;
@@ -27,8 +29,11 @@ export default class RecognizeResource extends BaseResource {
       await song.preprocess();
       recognizedData = await song.recognize();
       await song.writeMetadata();
-    } catch (err) {
-      return this.errorResponse(500, err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        return this.errorResponse(500, err.message);
+      }
+      return this.errorResponse(500, 'Internal Server Error.');
     } finally {
       await song.cleanup();
     }

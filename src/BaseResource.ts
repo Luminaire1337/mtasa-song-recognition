@@ -1,4 +1,4 @@
-import { Drash } from './deps.ts';
+import { Drash } from 'drash';
 
 export default class BaseResource extends Drash.Http.Resource {
   protected errorResponse(statusCode: number, error: string): Drash.Http.Response {

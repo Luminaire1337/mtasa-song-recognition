@@ -1,6 +1,8 @@
-import { exec, fs, OutputMode, path, v4 } from '../deps.ts';
+import * as path from 'jsr:@std/path';
+import { Promise as NodeID3 } from 'npm:node-id3';
+import FileOps from '../FileOps.ts';
 
-const TEMP_PATH = Deno.env.get('TEMP_PATH') || `/tmp_songs/`;
+const TEMP_PATH = Deno.env.get('TEMP_PATH') || '/tmp/songs/';
 const TRIM_AUDIO = Deno.env.get('TRIM_AUDIO') === 'true'; // Trimming the audio reduces processing time
 const TRIM_OFFSET = parseInt(Deno.env.get('TRIM_OFFSET') || '55', 10); // seconds
 const TRIM_LENGTH = parseInt(Deno.env.get('TRIM_LENGTH') || '45', 10); // seconds
@@ -17,24 +19,60 @@ export default class SongService {
 
   constructor(private path: string) {}
 
+  private async exec(command: string, ...args: string[]): Promise<string> {
+    const cmd = new Deno.Command(command, {
+      args: args,
+    });
+    const { code, stdout, stderr } = await cmd.output();
+    if (code !== 0) {
+      throw new Error(`Command failed with code ${code}: ${stderr}`);
+    }
+    return new TextDecoder().decode(stdout);
+  }
+
   public async preprocess(): Promise<void> {
     const extname = path.extname(this.path);
 
     if (!SUPPORTED_FORMATS.includes(extname)) throw new Error('Unsupported audio format.');
     if (!TRIM_AUDIO) return;
 
-    this.tmpFilePath = path.join(TEMP_PATH, `${v4.generate()}${extname}`);
+    try {
+      await FileOps.ensureDirectoryExists(TEMP_PATH);
+    } catch (err) {
+      console.error(`Could not create temporary directory ${TEMP_PATH}: ${err}`);
+      throw new Error('Internal Server Error.');
+    }
+
+    this.tmpFilePath = path.join(TEMP_PATH, `${crypto.randomUUID()}${extname}`);
 
     try {
-      await exec(`ffmpeg -ss ${TRIM_OFFSET} -i ${this.path} -t ${TRIM_LENGTH} -c copy ${this.tmpFilePath}`);
-      if (!(await fs.exists(this.tmpFilePath))) throw new Error('Could not trim song.');
+      await this.exec(
+        'ffmpeg',
+        '-ss',
+        `${TRIM_OFFSET}`,
+        '-i',
+        this.path,
+        '-t',
+        `${TRIM_LENGTH}`,
+        '-c',
+        'copy',
+        this.tmpFilePath
+      );
+      if (!(await FileOps.fileExists(this.tmpFilePath))) throw new Error('Could not trim song.');
 
-      // https://github.com/gpasq/deno-exec#does-piping-work
-      const duration = await exec(`bash -c "ffprobe -i ${this.tmpFilePath} -show_format -v quiet | sed -n 's/duration=//p'"`, {
-        output: OutputMode.Capture,
-      });
+      const duration = await this.exec(
+        'ffprobe',
+        '-i',
+        this.tmpFilePath,
+        '-show_entries',
+        'format=duration',
+        '-v',
+        'quiet',
+        '-of',
+        'csv=p=0'
+      );
 
-      const ceiledValue = Math.ceil(parseFloat(duration.output));
+      const ceiledValue = Math.ceil(parseFloat(duration));
       if (!ceiledValue || ceiledValue < TRIM_LENGTH)
         throw new RangeError('Could not trim song or trimmed song part is too short.');
     } catch (err) {
@@ -47,12 +85,8 @@ export default class SongService {
     if (TRIM_AUDIO && !this.tmpFilePath) throw new Error('No path was loaded into the SongService.');
 
     try {
-      const execResponse = await exec(`bash -c "songrec audio-file-to-recognized-song ${this.tmpFilePath || this.path} | base64"`, {
-        output: OutputMode.Capture,
-      }); // exec has no utf8 support on OutputMode.Capture
-      
-      const utf8Output = decodeURIComponent(escape(atob(execResponse.output)));
-      const response = JSON.parse(utf8Output);
+      const execResponse = await this.exec('songrec', 'audio-file-to-recognized-song', this.tmpFilePath || this.path);
+      const response = JSON.parse(execResponse);
 
       if (!response.track) throw new Error('Could not recognize song.');
 
@@ -69,11 +103,7 @@ export default class SongService {
     if (!this.recognizedData) throw new Error('No metadata was found to write.');
 
     try {
-      const response = await exec(
-        `kid3-cli -c "set artist '${SongService.sanitize(this.recognizedData.artist)}'" -c "set title '${SongService.sanitize(
-          this.recognizedData.title
-        )}'" -c "save" ${this.path}`
-      );
+      await NodeID3.update(this.recognizedData, this.path);
     } catch (err) {
       console.error(`Could not tag songfile ${this.path}: ${err}`);
       throw new Error('Could not tag the songfile.');
@@ -81,13 +111,9 @@ export default class SongService {
   }
 
   public async cleanup(): Promise<void> {
-    if (!TRIM_AUDIO || !this.tmpFilePath || !(await fs.exists(this.tmpFilePath))) return;
+    if (!TRIM_AUDIO || !this.tmpFilePath || !(await FileOps.fileExists(this.tmpFilePath))) return;
 
     await Deno.remove(this.tmpFilePath);
     this.tmpFilePath = undefined;
-  }
-
-  private static sanitize(arg: string): string {
-    return arg.replaceAll("'", "\\'");
   }
 }

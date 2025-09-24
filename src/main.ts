@@ -1,4 +1,4 @@
-import { Drash } from './deps.ts';
+import { Drash } from 'drash';
 
 import AuthMiddleware from './middlewares/AuthMiddleware.ts';
 
